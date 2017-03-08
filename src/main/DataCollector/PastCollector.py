@@ -1,5 +1,5 @@
 # Standard Library
-import json
+# import json
 # 3rd Party
 import pandas as pd
 import numpy as np
@@ -7,17 +7,58 @@ import requests
 
 
 # Constants - TODO move to config file to generalise
-esports_api_base = 'http://2015.na.lolesports.com/api/'
+esports_api_base1 = 'http://api.lolesports.com/api/v1'
+esports_api_base2 = 'http://api.lolesports.com/api/v2'
+match_data_api_base = 'https://acs.leagueoflegends.com/v1/stats/game'
 # Also found 'http://api.lolesports.com/api/v2/' while looking at ws TODO investigate usefulness
-# Also maybe v1 instead of v2
+# Also maybe http://2015.na.lolesports.com/api/'
 
 
-def get_week_hashes(tournament, week):
-    """Get hashes for all games that week in given tournament"""
-    pass
+def get_tournament_hashes(region, tournament):
+    """Get hashes for all games that have been played in a given tournament"""
+    if type(region) == int:
+        request_url = '{0}/scheduleItems?leagueId={1}'.format(esports_api_base1,
+                                                              region
+                                                              )
+    # elif type(region) == str:  # Untested
+    #     request_url = '{0}/leagues?slug={1}'.format(region)
+    else:
+        raise TypeError('region needs to be an int (or maybe a str)')
+
+    all_match_details = {}
+
+    region_matches = requests.get(request_url).json()
+    tournament_matches = region_matches['highlanderTournaments'][tournament]
+    for bracket in tournament_matches['brackets']:
+        for match in tournament_matches['brackets'][bracket]['matches']:
+            all_match_details[match] = []
+            match_json = tournament_matches['brackets'][bracket]['matches'][match]['games']
+            for game in match_json:
+                if 'gameId' in match_json[game]:
+                    all_match_details[match] += [(game,
+                                                  match_json[game]['gameId'],
+                                                  match_json[game]['gameRealm']
+                                                  )]
+    return all_match_details
 
 
-def get_data_from_hash(hash):
-    """Given a hash for a match, get all information about match"""
-    pass
+def get_hashes_from_series(tournament_id, match_id):
+    """Get hash match history info from tournament and match ids"""
+    request_url = '{0}/highlanderMatchDetails?tournamentId={1}&matchId={2}'.format(esports_api_base2,
+                                                                                   tournament_id,
+                                                                                   match_id
+                                                                                   )
+    highlander_match_details = requests.get(request_url).json()
+    return highlander_match_details['gameIdMappings']
+
+
+def get_data_from_hash(game_realm, game_id, game_hash):
+    """Given the acs information for a match, get all explicit data about what happened"""
+    request_url = '{0}/{1}/{2}/timeline?gameHash={3}'.format(match_data_api_base,
+                                                             game_realm,
+                                                             game_id,
+                                                             game_hash
+                                                             )
+    return requests.get(request_url).json()
+
 
