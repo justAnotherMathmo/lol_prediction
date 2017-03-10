@@ -52,13 +52,32 @@ def get_hashes_from_series(tournament_id, match_id):
     return highlander_match_details['gameIdMappings']
 
 
-def get_data_from_hash(game_realm, game_id, game_hash):
+# TODO refactor to use also in calling Riot's official API
+def get_data_from_hash(game_realm, game_id, game_hash, timeline=0):
     """Given the acs information for a match, get all explicit data about what happened"""
-    request_url = '{0}/{1}/{2}/timeline?gameHash={3}'.format(match_data_api_base,
-                                                             game_realm,
-                                                             game_id,
-                                                             game_hash
-                                                             )
+    if timeline:
+        timeline_url_mod = '/timeline'
+    else:
+        timeline_url_mod = ''
+    request_url = '{0}/{1}/{2}{3}?gameHash={4}'.format(match_data_api_base,
+                                                       game_realm,
+                                                       game_id,
+                                                       timeline_url_mod,
+                                                       game_hash
+                                                       )
     return requests.get(request_url).json()
 
 
+def game_data_stripped(game_json):
+    """Extracts features from the acs game data"""
+    pass
+
+
+def game_data_simplified(game_json):
+    """Processes stripped data and simplifies to a few parameters"""
+    pass
+
+
+def game_data_detailed(game_json):
+    """Extracts features from the acs game data, really detailed"""
+    pass
