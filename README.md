@@ -3,22 +3,23 @@ Collaborative project to create a number of test models for gambling in League o
 
 ## Tasks
 
-### Data Collection
-* Scrape raw data from pro matches
- * Turns out we don't need to scrape, there's an "official-unofficial" API https://gist.github.com/levi/e7e5e808ac0119e154ce#tourn
- * Turns out we can use API to also get information about what happened during the match (exact calls figured out by listening to the network calls on lolesports.com rather than using the above, which is old and outdated)
- * Now need to map tournament-id to nicer names
- * Also need to make the output data readable - to see data in its current form, look at doc/examples/proof_of_concept
+### Data Collection (src/main/DataCollector)
+* Have built structure to request data from pro matches, given either the game
+* Can also get all games in a tournament by chaining the tournament lookup and series lookup
+* To see data in its current form, look at (and run) doc/examples/proof_of_concept
+* Also need to make the output data readable and output into some csvs (CURRENT WORKING TASK)
+* Need to automate collation of data into csv's given a tournament (focus on LCK to being with)
+ * Perhaps also make a script to request game data once a week automatically?
 * Store data locally on server
 * Interface with riot API to pull data about amateur games
  * Create summary statistics and store those (likely too much data otherwise)
 
-### Cleaning
+### Cleaning (not-started)
 * Further post-processing of data
 
-### Analysis
+### Analysis (not-started)
 * Develop tools to use data to have more useful predictors
 
-### Prediction
+### Prediction/Statistics (not-started)
 * Predict outcomes of games in advance
 * Predict other stats about games in advance

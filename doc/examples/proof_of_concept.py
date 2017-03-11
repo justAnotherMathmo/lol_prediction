@@ -26,14 +26,17 @@ detailed_data = PastCollector.get_data_from_hash('TRLH3',
 #   to be fed in initially
 
 # gameDuration is simple - how long did the game last?
+print('gameDuration:')
 json_print(detailed_data['gameDuration'])
 
 # participantIdentities gives a map between player names and their id's (1-10)
+print('participantIdentities:')
 json_print(detailed_data['participantIdentities'][1])
 
 # teams gives a bunch of team data during that game - e.g. objectives taken,
 #   were they the first team to get that objective (with bounties), etc.
 #   Also gives the bans
+print('teams:')
 json_print(detailed_data['teams'][1])
 
 # participants gives more stats on that individual player (champion, kills,
@@ -56,18 +59,21 @@ detailed_data_timeline = PastCollector.get_data_from_hash('TRLH3',
 #   'WARD_KILL', 'BUILDING_KILL', 'CHAMPION_KILL', 'ITEM_SOLD',
 #   'ELITE_MONSTER_KILL', 'ITEM_UNDO']
 # They also have timestamps and a bunch of other data
+print('frame/events:')
 json_print(detailed_data_timeline['frames'][10]['events'][4])
 
 # Each frame also has participantFrames, which is a dictionary with keys
 #   for each champion in the game (keys are strings of integers 1 to 10)
 # Each of these gives a little information on the champion at that time
 #   (i.e. when the frame was taken - once a minute?)
+print('frame/participantFrames:')
 json_print(detailed_data_timeline['frames'][10]['participantFrames']['1'])
 json_print(detailed_data_timeline['frames'][11]['participantFrames']['1'])
 
 # Finally we have timestamp, which is probably the start of the frame
 # This indicates that frameInterval is measured in ms, as frames are probably
 #   every minute, and go up by 60000 each time
+print('frame/timestamp:')
 print(detailed_data_timeline['frames'][0]['timestamp'],
       detailed_data_timeline['frames'][1]['timestamp'],
       sep='\n'
