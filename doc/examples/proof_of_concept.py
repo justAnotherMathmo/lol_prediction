@@ -1,8 +1,8 @@
 import json
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../../src/main'))
-from DataCollector import PastCollector
+sys.path.insert(0, os.path.abspath('../../src/main/DataCollector'))
+import PastCollector
 
 
 # Just a function to make pretty printing json nicer

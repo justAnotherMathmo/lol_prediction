@@ -8,6 +8,8 @@ import requests
 import _constants
 import PastCollector
 
+# TODO refactor into one class when all made
+
 
 def game_data_stripped(game_realm, game_id, game_hash):
     """Extracts features from the acs game data"""
