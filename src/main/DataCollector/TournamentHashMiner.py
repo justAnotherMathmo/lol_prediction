@@ -11,7 +11,7 @@ import _constants
 
 
 # Number of requests to try where we see nothing before we give up
-base_time_out_counter_value = 100
+base_time_out_counter_value = 10  # Previously 100
 
 
 if __name__ == '__main__':
@@ -30,7 +30,8 @@ if __name__ == '__main__':
             new_row = pd.Series({'hash': tournament_data['id'],
                                  'leagueId': leagueId,
                                  'row_in_league': row,
-                                 'title': tournament_data['title']
+                                 'title': tournament_data['title'],
+                                 'published': tournament_data['published']
                                  })
             # If we find something, add it to our output dataframe
             output_tournament_data = output_tournament_data.append(new_row, ignore_index=True)

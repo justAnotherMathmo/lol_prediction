@@ -8,7 +8,15 @@ import requests
 import _constants
 
 
-def get_hashes_in_torunament(region, tournament):
+def json_requester(request_url):
+    attempt_req = requests.get(request_url, timeout=60)
+    if attempt_req.status_code != 200:
+        raise ConnectionError('Request Attempt to {} failed with status code {}'.format(request_url,
+                                                                                        attempt_req.status_code))
+    return attempt_req.json()
+
+
+def get_hashes_in_tournament(region, tournaments=None):
     """Get hashes for all games that have been played in a given tournament"""
     if type(region) == int:
         request_url = '{0}/scheduleItems?leagueId={1}'.format(_constants.api_base_esports1,
@@ -20,23 +28,36 @@ def get_hashes_in_torunament(region, tournament):
         raise TypeError('region needs to be an int (or maybe a str)')
 
     # Fail fast error catching
-    if attempt_req.status_code != 200:
-        raise ConnectionError('Request Attempt to {} failed'.format(request_url))
+    region_matches = json_requester(request_url)
 
     all_match_details = {}
 
-    region_matches = requests.get(request_url).json()
-    tournament_matches = region_matches['highlanderTournaments'][tournament]
-    for bracket in tournament_matches['brackets']:
-        for match in tournament_matches['brackets'][bracket]['matches']:
-            all_match_details[match] = []
-            match_json = tournament_matches['brackets'][bracket]['matches'][match]['games']
-            for game in match_json:
-                if 'gameId' in match_json[game]:
-                    all_match_details[match] += [(game,
-                                                  match_json[game]['gameId'],
-                                                  match_json[game]['gameRealm']
-                                                  )]
+    if type(tournaments) == str:
+        tournaments = [tournaments]
+    elif tournaments is None:
+        tournaments = list(map(lambda x: x['id'], region_matches['highlanderTournaments']))
+    for tournament_matches in region_matches['highlanderTournaments']:
+        if tournament_matches['id'] not in tournaments:
+            continue
+        for bracket in tournament_matches['brackets']:
+            for match in tournament_matches['brackets'][bracket]['matches']:
+                if tournament_matches['brackets'][bracket]['matches'][match]['state'] == 'unresolved':
+                    # This happens if the game hasn't been played
+                    continue
+                all_match_details[match] = []
+                match_json = tournament_matches['brackets'][bracket]['matches'][match]['games']
+                for game in match_json:
+                    if 'gameId' in match_json[game]:
+                        all_match_details[match] += [(game,
+                                                      match_json[game]['gameId'],
+                                                      match_json[game]['gameRealm'],
+                                                      int(match_json[game]['name'][1:])  # Game number
+                                                      )]
+                all_match_details[match].sort(key=lambda x: x[3])  # Sort by game number
+
+                # TODO see when this happens and if we can avoid
+                if all_match_details[match] == []:
+                    all_match_details.pop(match, None)
     return all_match_details
 
 
@@ -46,7 +67,7 @@ def get_hashes_from_series(tournament_id, match_id):
                                                                                    tournament_id,
                                                                                    match_id
                                                                                    )
-    highlander_match_details = requests.get(request_url).json()
+    highlander_match_details = json_requester(request_url)
     return highlander_match_details['gameIdMappings']
 
 
@@ -63,4 +84,9 @@ def get_data_from_hash(game_realm, game_id, game_hash, timeline=0):
                                                        timeline_url_mod,
                                                        game_hash
                                                        )
-    return requests.get(request_url).json()
+    return json_requester(request_url)
+
+
+# Testing
+if __name__ == '__main__':
+    print(get_hashes_from_series('0a5fb908-70c8-411b-81e0-27a83c167eda', '0295e159-948e-4c62-a44a-173d4a653c2b'))

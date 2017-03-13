@@ -1,6 +1,4 @@
 # Standard Library
-from functools import reduce
-import operator
 import re
 # import json
 # 3rd Party
@@ -12,11 +10,6 @@ import _constants
 import PastCollector
 
 # TODO refactor into one class when all made
-
-#
-# def access_json_by_tuple(json_object, keys):
-#     """Accesses a nested dictionary (json) with the keys in a tuple"""
-#     return functools.reduce(operator.getitem, keys, json_object)
 
 
 def access_json_by_tuple(json_object, keys):
@@ -93,10 +86,13 @@ def simple_game_row(game_realm, game_id, game_hash):
             for attribute in unfiltered_keys[json_key]:
                 attribute_tuple = json_key + (attribute,)
                 global_attribute_key = '/'.join(map(str, attribute_tuple[1:]))
-                data_by_team[team][global_attribute_key] = access_json_by_tuple(
-                    game_data,
-                    attribute_tuple
-                )
+                try:
+                    data_by_team[team][global_attribute_key] = access_json_by_tuple(
+                        game_data,
+                        attribute_tuple
+                    )
+                except KeyError:
+                    data_by_team[team][global_attribute_key] = np.nan
 
         for team_stat in ['firstRiftHerald', 'dragonKills', 'inhibitorKills',
                           'firstBlood', 'firstInhibitor', 'towerKills',
@@ -119,9 +115,15 @@ def simple_game_row(game_realm, game_id, game_hash):
 
         data_by_team[team]['team_name'] = team_names[team]
 
-    # Make dict into pd.Series object
+    # Make dicts into dataframe and reorder columns a little
+    summary_df = pd.DataFrame(data_by_team)
+    cols_at_front = ['team_name', 'win', 'side']
+    cols = list(summary_df)
+    for col in cols_at_front:
+        cols.remove(col)
+    summary_df = summary_df[cols_at_front + cols]
 
-    return pd.Series(data_by_team[0]), pd.Series(data_by_team[1])
+    return summary_df
 
 
 def game_data_simplified(game_realm, game_id, game_hash):
