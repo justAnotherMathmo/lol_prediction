@@ -42,6 +42,7 @@ json_print(detailed_data['teams'][1])
 # participants gives more stats on that individual player (champion, kills,
 #   damage taken, damage taken in different times of the game, etc. etc.
 #   There's a fuck ton here. Have fun.
+print('participants:')
 json_print(detailed_data['participants'][4])
 
 

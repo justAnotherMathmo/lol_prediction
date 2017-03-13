@@ -14,10 +14,14 @@ def get_hashes_in_torunament(region, tournament):
         request_url = '{0}/scheduleItems?leagueId={1}'.format(_constants.api_base_esports1,
                                                               region
                                                               )
-    # elif type(region) == str:  # Untested
+    # elif type(region) == str:  # Untested and don't know how to match up leagues and slugs
     #     request_url = '{0}/leagues?slug={1}'.format(region)
     else:
         raise TypeError('region needs to be an int (or maybe a str)')
+
+    # Fail fast error catching
+    if attempt_req.status_code != 200:
+        raise ConnectionError('Request Attempt to {} failed'.format(request_url))
 
     all_match_details = {}
 

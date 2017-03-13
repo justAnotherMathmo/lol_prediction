@@ -41,6 +41,8 @@ if __name__ == '__main__':
         leagueId += 1
         time_out_counter -= 1
 
-    # Write the dataframe to a csv
-    output_tournament_data.to_csv('../../../data/tournament_hash_table.csv')
+    # Fix the int to float issue and write the dataframe to a csv
+    output_tournament_data[['leagueId', 'row_in_league']] = output_tournament_data[['leagueId',
+                                                                                    'row_in_league']].astype(int)
+    output_tournament_data.to_csv(_constants.data_location + 'tournament_hash_table.csv')
     print('Data written')
