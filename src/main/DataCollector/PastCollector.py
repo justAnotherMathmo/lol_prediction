@@ -1,4 +1,5 @@
 # Standard Library
+# import time
 # import json
 # 3rd Party
 import pandas as pd
@@ -8,12 +9,22 @@ import requests
 import _constants
 
 
-def json_requester(request_url):
+def json_requester(request_url, retries=200):
     attempt_req = requests.get(request_url, timeout=60)
-    if attempt_req.status_code != 200:
-        raise ConnectionError('Request Attempt to {} failed with status code {}'.format(request_url,
-                                                                                        attempt_req.status_code))
-    return attempt_req.json()
+    curr_attempts = 0
+    while True:
+        if attempt_req.status_code == 200:
+            return attempt_req.json()
+        elif attempt_req.status_code == 504 and curr_attempts < retries:
+            curr_attempts += 1
+            if curr_attempts in [retries//4, retries//2, (3*retries)//4]:
+                print('Get request {} of {} to {} timed out (504), trying again'.format(curr_attempts,
+                                                                                        retries,
+                                                                                        request_url))
+            continue
+        else:
+            raise ConnectionError('Request Attempt to {} failed with status code {}'.format(request_url,
+                                                                                            attempt_req.status_code))
 
 
 def get_hashes_in_tournament(region, tournaments=None):
@@ -85,8 +96,3 @@ def get_data_from_hash(game_realm, game_id, game_hash, timeline=0):
                                                        game_hash
                                                        )
     return json_requester(request_url)
-
-
-# Testing
-if __name__ == '__main__':
-    print(get_hashes_from_series('0a5fb908-70c8-411b-81e0-27a83c167eda', '0295e159-948e-4c62-a44a-173d4a653c2b'))
