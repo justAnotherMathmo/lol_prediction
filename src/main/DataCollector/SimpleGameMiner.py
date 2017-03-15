@@ -1,5 +1,6 @@
 # Populate the simple CSV for a given tournament
-
+# Standard Library
+import time
 # 3rd Party
 import pandas as pd
 import numpy as np
@@ -24,7 +25,7 @@ if __name__ == '__main__':
     failed = []
 
     # Get all tournament/match pairs (doing it this way to avoid code duplication in
-    #   implementation of cached requests
+    #   implementation of cached requests)
     for tournament in list(tournament_names['hash']):
         match_ids = PastCollector.get_hashes_in_tournament(tourny_to_mine_from, tournament)
 
@@ -48,6 +49,7 @@ if __name__ == '__main__':
             try:
                 game_hashes = PastCollector.get_hashes_from_series(tournament, match)
             except ConnectionError:
+                print('Tournament: {}, match: {} failed, will try again later'.format(tournament, match))
                 failed += [(tournament, match, games_data)]
                 continue
 

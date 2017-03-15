@@ -17,10 +17,10 @@ def json_requester(request_url, retries=200):
             return attempt_req.json()
         elif attempt_req.status_code == 504 and curr_attempts < retries:
             curr_attempts += 1
-            if curr_attempts in [retries//4, retries//2, (3*retries)//4]:
-                print('Get request {} of {} to {} timed out (504), trying again'.format(curr_attempts,
-                                                                                        retries,
-                                                                                        request_url))
+            if curr_attempts == 1:
+                print('Get request to {} timed out (504), trying again'.format(request_url))
+            if curr_attempts in [(i*retries)//4 for i in range(1, 4)]:
+                print('{} fails (will try {} times)'.format(curr_attempts, retries))
             continue
         else:
             raise ConnectionError('Request Attempt to {} failed with status code {}'.format(request_url,
@@ -60,8 +60,10 @@ def get_hashes_in_tournament(region, tournaments=None):
                 for game in match_json:
                     if 'gameId' in match_json[game]:
                         all_match_details[match] += [(game,
-                                                      match_json[game]['gameId'],
-                                                      match_json[game]['gameRealm'],
+                                                      # Need to strip whitespace because of goddamn
+                                                      # LCK summer 2016 ROX vs SKT week 3
+                                                      match_json[game]['gameId'].strip(),
+                                                      match_json[game]['gameRealm'].strip(),
                                                       int(match_json[game]['name'][1:])  # Game number
                                                       )]
                 all_match_details[match].sort(key=lambda x: x[3])  # Sort by game number
