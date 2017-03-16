@@ -11,7 +11,7 @@ import PastCollector
 import WriteDataLocally
 
 # Tournament we want all data from:
-tourny_to_mine_from = 2
+tourny_to_mine_from = 7
 
 
 if __name__ == '__main__':
