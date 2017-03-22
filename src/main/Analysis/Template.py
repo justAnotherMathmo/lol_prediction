@@ -1,7 +1,7 @@
 # 3rd Party imports
 import pandas as pd
 import numpy as np
-import sklearn.ensemble
+# import sklearn.ensemble
 # Repository Files
 import _constants
 
@@ -46,20 +46,20 @@ def simplify_dataframe(df, include_team_name=True):
     return new_df
 
 
-def forest_training_data(df):
-    list_of_games = []
-    simple_df = simplify_dataframe(df, include_team_name=False)
-    for row_num in range(len(df)//2):
-        # Get agggreagte data for a match with both teams, flipping for games
-        team_blue = simple_df[simple_df.index == 2*row_num].squeeze()
-        team_red = simple_df[simple_df.index == 2*row_num+1].squeeze()
-        game_data1 = np.append(team_blue.as_matrix(), team_red.as_matrix())
-        game_data1 = np.append(game_data1, [0])
-        game_data2 = np.append(team_red.as_matrix(), team_blue.as_matrix())
-        game_data2 = np.append(game_data2, [1])
-        list_of_games += [game_data1, game_data2]
-
-    return list_of_games, list(df.win)
+# def forest_training_data(df):
+#     list_of_games = []
+#     simple_df = simplify_dataframe(df, include_team_name=False)
+#     for row_num in range(len(df)//2):
+#         # Get agggreagte data for a match with both teams, flipping for games
+#         team_blue = simple_df[simple_df.index == 2*row_num].squeeze()
+#         team_red = simple_df[simple_df.index == 2*row_num+1].squeeze()
+#         game_data1 = np.append(team_blue.as_matrix(), team_red.as_matrix())
+#         game_data1 = np.append(game_data1, [0])
+#         game_data2 = np.append(team_red.as_matrix(), team_blue.as_matrix())
+#         game_data2 = np.append(game_data2, [1])
+#         list_of_games += [game_data1, game_data2]
+#
+#     return list_of_games, list(df.win)
 
 
 def team_data(df):
@@ -67,6 +67,23 @@ def team_data(df):
     gb = simple_df.groupby(['team_name']).mean()
     return gb
 
+
+def forest_training_data(df):
+    list_of_games = []
+    team_df = team_data(df)
+    for row_num in range(len(df)//2):
+        # Get agggreagte data for a match with both teams, flipping for games
+        blue_name = df[df.index == 2*row_num].squeeze()['team_name']
+        red_name = df[df.index == 2*row_num+1].squeeze()['team_name']
+        team_blue = team_df.loc[blue_name].squeeze()
+        team_red = team_df.loc[red_name].squeeze()
+        game_data1 = np.append(team_blue.as_matrix(), team_red.as_matrix())
+        game_data1 = np.append(game_data1, [0])
+        game_data2 = np.append(team_red.as_matrix(), team_blue.as_matrix())
+        game_data2 = np.append(game_data2, [1])
+        list_of_games += [game_data1, game_data2]
+
+    return list_of_games, list(df.win)
 
 if __name__ == '__main__':
     df = pd.read_csv(_constants.data_location + 'simple_game_data_leagueId=6.csv')
