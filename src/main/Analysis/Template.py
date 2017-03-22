@@ -1,7 +1,7 @@
 # 3rd Party imports
 import pandas as pd
 import numpy as np
-# import sklearn.ensemble
+import sklearn.ensemble
 # Repository Files
 import _constants
 
@@ -88,6 +88,6 @@ def forest_training_data(df):
 if __name__ == '__main__':
     df = pd.read_csv(_constants.data_location + 'simple_game_data_leagueId=6.csv')
     training, winloss = forest_training_data(df)
-    forest = sklearn.ensemble.RandomForestClassifier(n_estimators=100, oob_score=True, n_jobs=4)
+    forest = sklearn.ensemble.RandomForestClassifier(n_estimators=500, oob_score=True, n_jobs=4)
     forest.fit(training, winloss)
-    print(forest.oob_score_, forest.oob_score, forest.score(training, winloss))
+    print(forest.oob_score_,  forest.score(training, winloss))
