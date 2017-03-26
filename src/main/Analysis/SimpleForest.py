@@ -1,3 +1,5 @@
+# Standard library imports
+import sys
 # 3rd Party imports
 import pandas as pd
 import numpy as np
@@ -86,7 +88,15 @@ def forest_training_data(df):
     return list_of_games, list(df.win)
 
 if __name__ == '__main__':
-    df = pd.read_csv(_constants.data_location + 'simple_game_data_leagueId=6.csv')
+    # To allow the league id to be called from the command line
+    args = sys.argv
+    if len(args) > 1:
+        league_id = args[1]
+    else:
+        league_id = '6'
+
+    # Where the actual work is done
+    df = pd.read_csv(_constants.data_location + 'simple_game_data_leagueId={}.csv'.format(league_id))
     training, winloss = forest_training_data(df)
     forest = sklearn.ensemble.RandomForestClassifier(n_estimators=500, oob_score=True, n_jobs=4)
     forest.fit(training, winloss)
