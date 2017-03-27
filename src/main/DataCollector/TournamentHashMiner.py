@@ -4,7 +4,6 @@
 
 # 3rd Party
 import pandas as pd
-import numpy as np
 import requests
 # Repository Files
 import _constants

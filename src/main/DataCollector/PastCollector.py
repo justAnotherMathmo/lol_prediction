@@ -27,6 +27,8 @@ def json_requester(request_url, retries=200):
                                                                                             attempt_req.status_code))
 
 
+# Doesn't work for LPL - can't actually get game data from those, even directly
+#  on lolesports website
 def get_hashes_in_tournament(region, tournaments=None):
     """Get hashes for all games that have been played in a given tournament"""
     if type(region) == int:

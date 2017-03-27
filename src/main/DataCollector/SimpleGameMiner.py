@@ -9,7 +9,7 @@ import PastCollector
 import WriteDataLocally
 
 # Tournaments we want all data from:
-tourny_list = [2, 3, 4, 5, 6, 7, 8]
+tourny_list = [2, 3, 4, 5, 6, 8]
 
 
 if __name__ == '__main__':
