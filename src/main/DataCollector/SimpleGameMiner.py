@@ -9,11 +9,12 @@ import PastCollector
 import WriteDataLocally
 
 # Tournaments we want all data from:
-tourny_list = [2, 3, 4, 5, 6, 7, 8]
+tourny_list = [6, 7, 8]  # [2, 3, 4, 5, 6, 7, 8]
 
 
 if __name__ == '__main__':
     for tourny in tourny_list:
+        print('Tournament {} started'.format(tourny))
         df_to_write = pd.DataFrame()
         tournament_names = pd.read_csv(_constants.data_location + 'tournament_hash_table.csv')
         tournament_names = tournament_names[(tournament_names.leagueId == tourny) &
