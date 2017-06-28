@@ -1,5 +1,5 @@
 # Standard Library
-# import time
+import time
 # import json
 # 3rd Party
 import pandas as pd
@@ -9,10 +9,10 @@ import requests
 import _constants
 
 
-def json_requester(request_url, retries=200):
-    attempt_req = requests.get(request_url, timeout=60)
+def json_requester(request_url, retries=50, wait_time=600):
     curr_attempts = 0
     while True:
+        attempt_req = requests.get(request_url, timeout=60)
         if attempt_req.status_code == 200:
             return attempt_req.json()
         elif attempt_req.status_code == 504 and curr_attempts < retries:
@@ -22,6 +22,10 @@ def json_requester(request_url, retries=200):
             if curr_attempts in [(i*retries)//4 for i in range(1, 4)]:
                 print('{} fails (will try {} times)'.format(curr_attempts, retries))
             continue
+        elif attempt_req.status_code == 429 and curr_attempts < retries:
+            # Too Many requests error
+            print('Too many requests; sleeping for {} seconds'.format(wait_time))
+            time.sleep(wait_time)
         else:
             raise ConnectionError('Request Attempt to {} failed with status code {}'.format(request_url,
                                                                                             attempt_req.status_code))
