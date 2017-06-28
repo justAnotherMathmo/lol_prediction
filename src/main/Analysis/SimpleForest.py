@@ -8,22 +8,18 @@ import sklearn.ensemble
 import _constants
 
 
-def add_over_all_stats(df, stat_name, inplace=True):
+def add_over_all_stats(df, stat_name):
     """Adds stat_name together for one player"""
     new_col = df[['{}/{}'.format(i, stat_name) for i in range(5)]].sum(axis=1)
     df['all/{}'.format(stat_name)] = new_col
-    if not inplace:
-        return df
 
 
-def add_over_all_stats_new(df, stat_name, inplace=True):
+def add_over_all_stats_new(df, stat_name):
     """Adds stat_name together for one player"""
     new_col_blue = df.ix[df.side == 1, ['{}/{}'.format(i, stat_name) for i in range(5)]].sum(axis=1)
     new_col_red = df.ix[df.side == 0, ['{}/{}'.format(i, stat_name) for i in range(5, 10)]].sum(axis=1)
     df.ix[df.side == 1, 'all/{}'.format(stat_name)] = new_col_blue
     df.ix[df.side == 0, 'all/{}'.format(stat_name)] = new_col_red
-    if not inplace:
-        return df
 
 
 def simplify_dataframe(df, include_team_name=True):
@@ -87,17 +83,20 @@ def forest_training_data(df):
 
     return list_of_games, list(df.win)
 
-if __name__ == '__main__':
-    # To allow the league id to be called from the command line
-    args = sys.argv
-    if len(args) > 1:
-        league_id = args[1]
-    else:
-        league_id = '6'
 
+def predict_league(league_id):
+    # To allow the league id to be called from the command line
     # Where the actual work is done
     df = pd.read_csv(_constants.data_location + 'simple_game_data_leagueId={}.csv'.format(league_id))
     training, winloss = forest_training_data(df)
+    #df3 = pd.read_csv(_constants.data_location + 'simple_game_data_leagueId={}.csv'.format(5))
+    #test, twin = forest_training_data(df3)
+    print(len(training[0]))
     forest = sklearn.ensemble.RandomForestClassifier(n_estimators=500, oob_score=True, n_jobs=4)
     forest.fit(training, winloss)
     print(forest.oob_score_,  forest.score(training, winloss))
+    print(len(forest.feature_importances_))
+    return forest
+
+
+#predict_league(3)
