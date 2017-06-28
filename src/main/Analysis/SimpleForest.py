@@ -98,5 +98,3 @@ def predict_league(league_id):
     print(len(forest.feature_importances_))
     return forest
 
-
-#predict_league(3)

@@ -1,5 +1,6 @@
 #should refactor out common code
 from SimpleForest import forest_training_data
+from SimpleForest import predict_league
 import _constants
 
 
@@ -22,12 +23,12 @@ def build_net(train, winloss):
     inputs = 47
     outputs = 1
     batch_size = 64
-    layer_widths = [100, 50]
+    layer_widths = [128, 128, 64, 32]
     eps = 1e-3
-    print("TF WIZARDRY")
+    #print("TF WIZARDRY")
     x = train #= tf.placeholder(tf.float32, shape=[None, inputs])
     resp = winloss #tf.placeholder(tf.float32, shape=[None, outputs])
-    print("Next: layers")
+    #print("Next: layers")
     weights = [weight_variable([inputs, layer_widths[0]])]
     biases = [bias_variable([layer_widths[0]])]
     for i in range(1, len(layer_widths)):
@@ -40,38 +41,39 @@ def build_net(train, winloss):
         layer_outputs.append(tf.nn.elu(tf.matmul(layer_outputs[i - 1], weights[i]) + biases[i]))
     out = tf.matmul(layer_outputs[-1], final_layer) + final_bias
     out = tf.nn.sigmoid(out)
-    print("Next: loss")
+    #print("Next: loss")
     loss = -tf.reduce_mean(tf.log(resp * out + (1 - resp) * (1 - out) + eps))
     train_step = tf.train.AdamOptimizer(1e-4).minimize(loss)
     correct = tf.equal(resp, tf.round(out))
     accuracy = tf.reduce_mean(tf.cast(correct, tf.float32))
-    print("Hi")
+    #print("Hi")
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         for i in range(10000):
             #batch = [select_batch(train, i, batch_size), select_batch(winloss, i, batch_size)];
             train_step.run()#feed_dict={x: batch[0], resp: batch[1]})
-            if i % 100 == 0:
-                #print(tf.slice(winloss, [0], [50]).eval())
-                #print(tf.slice(train, [0, 0], [5, 5]).eval())
-                print("acc:" + str(accuracy.eval()))#feed_dict={x: batch[0], resp: batch[1]}))
-                print("loss:" + str(loss.eval()))
+
+        print("acc:" + str(accuracy.eval()))#feed_dict={x: batch[0], resp: batch[1]}))
+        print("loss:" + str(loss.eval()))
 
 
 
 def train_net(df):
     pred, resp = forest_training_data(df)
-    print("Fetched data, tensoring")
+   # print("Fetched data, tensoring")
     tpred = tf.cast(tf.stack(pred), tf.float32)
-    print("Half tensored")
+
+    tpred = tf.nn.l2_normalize(tpred, 0)
+    #print("Half tensored")
     tresp = tf.cast(tf.stack(resp), tf.float32)
-    tresp = tf.reshape(tresp, [972, 1])
+    tresp = tf.reshape(tresp, [len(resp), 1])
     build_net(tpred, tresp)
 
-
-df = pd.read_csv(_constants.data_location + 'simple_game_data_leagueId={}.csv'.format(3))
+league = 3
+df = pd.read_csv(_constants.data_location + 'simple_game_data_leagueId={}.csv'.format(league))
 
 train_net(df)
+predict_league(league)
 
 
 
