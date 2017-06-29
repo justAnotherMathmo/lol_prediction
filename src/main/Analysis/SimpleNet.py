@@ -7,23 +7,30 @@ import pandas as pd
 import edward as ed
 import numpy as np
 
+#Gaussian variational 'posterior' with tf.Variable parameters - to be fit with the true posterior
 def gauss_var_post(shape):
   return ed.models.Normal(loc=tf.Variable(tf.random_normal(shape)), scale=tf.nn.softplus(tf.Variable(tf.random_normal(shape))))
 
+#guassian prior (with requested shape)
 def gauss_prior(shape):
     return ed.models.Normal(loc=tf.zeros(shape), scale=tf.ones(shape))
 
+#TODO
 def select_batch(tensor, index, size):
     return tensor
 
-
+#Builds and trains neural network given stats train, outcomes winloss
 def build_net(train, winloss, num_train_steps=10000):
+    # Number of stats currently used to predict outcome- 23 per team + variable for side
     inputs = 47
     outputs = 1
     #batch_size = 64
+    # widths of fully-connected layers in NN
     layer_widths = [128, 64, 32]
+    # Input data goes here (via feed_dict or equiv)
     x = tf.placeholder(tf.float32, shape=[len(train), inputs])
-    resp = winloss #tf.placeholder(tf.float32, shape=[None, outputs])
+    resp = winloss
+    # Construct all parameters of NN, set to independant gaussian priors
     weights = [gauss_prior([inputs, layer_widths[0]])]
     biases = [gauss_prior([layer_widths[0]])]
     for i in range(1, len(layer_widths)):
@@ -31,34 +38,44 @@ def build_net(train, winloss, num_train_steps=10000):
         biases.append(gauss_prior([layer_widths[i]]))
     final_layer = gauss_prior([layer_widths[-1], outputs])
     final_bias = gauss_prior([outputs])
+
+    # Define operation of neural network on input
     layer_outputs = [tf.nn.elu(tf.matmul(tf.nn.l2_normalize(x, 0), weights[0]) + biases[0])]
     for i in range(1, len(layer_widths)):
         layer_outputs.append(tf.nn.elu(tf.matmul(layer_outputs[i - 1], weights[i]) + biases[i]))
+    # Define output distribution
     out = ed.models.Bernoulli(logits=tf.matmul(layer_outputs[-1], final_layer) + final_bias)
 
+    # Variational 'posterior's for NN params
     qweights = [gauss_var_post(w.shape) for w in weights]
     qbiases = [gauss_var_post(b.shape) for b in biases]
     qfinal_layer = gauss_var_post(final_layer.shape)
     qfinal_bias = gauss_var_post(final_bias.shape)
 
+    # Map from random variables to their variational posterior objects
     var_post = {final_layer: qfinal_layer, final_bias: qfinal_bias}
     for i in range(len(weights)):
         var_post[weights[i]] = qweights[i]
     for i in range(len(biases)):
         var_post[biases[i]] = qbiases[i]
+    # evaluate 'accuracy' (what even is this??) and likelihood of model over the dataset before training
     print(ed.evaluate('binary_accuracy', data={out: resp, x: train}))
     print(ed.evaluate('log_likelihood', data={out: resp, x: train}))
+    # Run variational inference, minimizing KL(q, p) using stochastic gradient descent over variational params
     inference = ed.KLqp(var_post, data={out: resp, x: train})
     inference.run(n_samples=8, n_iter=1000)
+    # Get output object dependant on variational posteriors rather than priors
     out_post = ed.copy(out, var_post)
+    # Re-evaluate metrics
     print(ed.evaluate('binary_accuracy', data={out_post: resp, x: train}))
     print(ed.evaluate('log_likelihood', data={out_post: resp, x: train}))
 
+    # Run our own metrics because we don't know what the hell evaluate('binary_accuracy' is doing)
     correct = tf.equal(resp, tf.round(out_post.probs))
     accuracy = tf.reduce_mean(tf.cast(correct, tf.float32))
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        print(correct.get_shape())
+        #print(correct.get_shape())
         print(accuracy.eval(feed_dict={x: train}))
         #print(qfinal_layer.mean().eval(feed_dict={x: train}))
         #print(qfinal_layer.scale.eval(feed_dict={x: train}))
