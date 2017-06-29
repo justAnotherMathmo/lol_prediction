@@ -70,7 +70,7 @@ def forest_training_data(df):
     list_of_games = []
     team_df = team_data(df)
     for row_num in range(len(df)//2):
-        # Get agggreagte data for a match with both teams, flipping for games
+        # Get aggregate data for a match with both teams, flipping for games
         blue_name = df[df.index == 2*row_num].squeeze()['team_name']
         red_name = df[df.index == 2*row_num+1].squeeze()['team_name']
         team_blue = team_df.loc[blue_name].squeeze()
@@ -89,8 +89,8 @@ def predict_league(league_id):
     # Where the actual work is done
     df = pd.read_csv(_constants.data_location + 'simple_game_data_leagueId={}.csv'.format(league_id))
     training, winloss = forest_training_data(df)
-    #df3 = pd.read_csv(_constants.data_location + 'simple_game_data_leagueId={}.csv'.format(5))
-    #test, twin = forest_training_data(df3)
+    # df3 = pd.read_csv(_constants.data_location + 'simple_game_data_leagueId={}.csv'.format(5))
+    # test, twin = forest_training_data(df3)
     print(len(training[0]))
     forest = sklearn.ensemble.RandomForestClassifier(n_estimators=500, oob_score=True, n_jobs=4)
     forest.fit(training, winloss)
