@@ -2,8 +2,6 @@
 from SimpleForest import forest_training_data
 from SimpleForest import predict_league
 import _constants
-
-
 import tensorflow as tf
 import pandas as pd
 import edward as ed
@@ -18,7 +16,8 @@ def gauss_prior(shape):
 def select_batch(tensor, index, size):
     return tensor
 
-def build_net(train, winloss):
+
+def build_net(train, winloss, num_train_steps=10000):
     inputs = 47
     outputs = 1
     #batch_size = 64
@@ -80,7 +79,6 @@ def build_net(train, winloss):
     #     print("loss:" + str(loss.eval()))
 
 
-
 def train_net(df):
     pred, resp = forest_training_data(df)
     apred = np.array(pred).astype(np.float32)
@@ -95,11 +93,12 @@ def train_net(df):
    #  tresp = tf.reshape(tresp, [len(resp), 1])
    #  build_net(tpred, tresp)
 
-league = 3
-df = pd.read_csv(_constants.data_location + 'simple_game_data_leagueId={}.csv'.format(league))
 
-train_net(df)
-#predict_league(league)
+if __name__ == '__main__':
+    league = 3
+    df = pd.read_csv(_constants.data_location + 'simple_game_data_leagueId={}.csv'.format(league))
+    train_net(df)
+    predict_league(league)
 
 
 
