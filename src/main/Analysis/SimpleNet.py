@@ -5,16 +5,19 @@ import tensorflow as tf
 import pandas as pd
 import edward as ed
 import numpy as np
+import sklearn as sk
 import Nets
+from yellowfin import YFOptimizer
+
 
 # Gaussian variational 'posterior' with tf.Variable parameters - to be fit with the true posterior
 def gauss_var_post(shape):
-    return ed.models.Normal(loc=tf.Variable(tf.random_normal(shape)), scale=tf.nn.softplus(tf.Variable(tf.random_normal(shape))))
+    return ed.models.Normal(loc=tf.Variable(tf.zeros(shape)), scale=tf.nn.softplus(tf.Variable(tf.zeros(shape))))
 
 
 # guassian prior (with requested shape)
-def gauss_prior(shape):
-    return ed.models.Normal(loc=tf.zeros(shape), scale=tf.ones(shape))
+def gauss_prior(shape, std=1.0):
+    return ed.models.Normal(loc=tf.zeros(shape), scale=std*tf.ones(shape))
 
 
 # TODO
@@ -29,11 +32,11 @@ def build_net(x_train, y_train, num_train_steps=10000):
     outputs = 1
 
     # widths of fully-connected layers in NN
-    layer_widths = [8, 8]
+    layer_widths = [8, 8, 8, 8, 8, 8, 8]
     # Input data goes here (via feed_dict or equiv)
     x = tf.placeholder(tf.float32, shape=[len(x_train), inputs])
 
-    activations = [tf.nn.elu for _ in layer_widths] + [tf.identity]
+    activations = [Nets.selu for _ in layer_widths] + [tf.identity]
     layer_widths += [outputs]
     net = Nets.SuperDenseNet(inputs, layer_widths, activations)
     # Construct all parameters of NN, set to independant gaussian priors
@@ -54,8 +57,11 @@ def build_net(x_train, y_train, num_train_steps=10000):
     print('accuracy, log_likelihood, crossentropy',
           ed.evaluate(['accuracy', 'log_likelihood', 'crossentropy'], data={out: y_train, x: x_train}))
     # Run variational inference, minimizing KL(q, p) using stochastic gradient descent over variational params
+
     inference = ed.KLqp(var_post, data={out: y_train, x: x_train})
-    inference.run(n_samples=16, n_iter=10000)
+    #inference.initialize(optimizer=YFOptimizer())
+
+    inference.run(n_samples=16, n_iter=num_train_steps)
 
     # Get output object dependant on variational posteriors rather than priors
     out_post = ed.copy(out, var_post)
@@ -66,12 +72,12 @@ def build_net(x_train, y_train, num_train_steps=10000):
 
 def train_net(df):
     pred, resp = forest_training_data(df)
-    for x in pred:
-        print(x.tolist())
-
+    #for x in pred:
+      #  print(x.tolist())
+    sk.preprocessing.scale(pred, copy=False)
     apred = np.array(pred, dtype=np.float32)
     aresp = np.array(resp, dtype=np.float32).reshape((len(pred), 1))
-    build_net(apred, aresp)
+    build_net(apred, aresp, 50000)
 
    # print("Fetched data, tensoring")
    #  tpred = tf.cast(tf.stack(pred), tf.float32)
