@@ -26,15 +26,18 @@ def select_batch(tensor, index, size):
 
 
 # Builds and trains neural network given stats train, outcomes winloss
-def build_net(x_train, y_train, num_train_steps=10000):
+def build_net(x_train, y_train, num_train_steps=10000, x_test=None, y_test=None):
     # Number of stats currently used to predict outcome- 23 per team + variable for side
     inputs = 47
     outputs = 1
-
+    if x_test is None:
+        x_test = x_train
+    if y_test is None:
+        y_test = y_train
     # widths of fully-connected layers in NN
-    layer_widths = [8, 8, 8, 8, 8, 8, 8]
+    layer_widths = [8, 8, 8, 8, 8]
     # Input data goes here (via feed_dict or equiv)
-    x = tf.placeholder(tf.float32, shape=[len(x_train), inputs])
+    x = tf.placeholder(tf.float32, shape=[None, inputs])
 
     activations = [Nets.selu for _ in layer_widths] + [tf.identity]
     layer_widths += [outputs]
@@ -55,11 +58,11 @@ def build_net(x_train, y_train, num_train_steps=10000):
 
     # evaluate 'accuracy' (what even is this??) and likelihood of model over the dataset before training
     print('accuracy, log_likelihood, crossentropy',
-          ed.evaluate(['accuracy', 'log_likelihood', 'crossentropy'], data={out: y_train, x: x_train}))
+          ed.evaluate(['accuracy', 'log_likelihood', 'crossentropy'], data={out: y_test, x: x_test}))
     # Run variational inference, minimizing KL(q, p) using stochastic gradient descent over variational params
 
     inference = ed.KLqp(var_post, data={out: y_train, x: x_train})
-    #inference.initialize(optimizer=YFOptimizer())
+    inference.initialize(optimizer=YFOptimizer())
 
     inference.run(n_samples=16, n_iter=num_train_steps)
 
@@ -67,17 +70,34 @@ def build_net(x_train, y_train, num_train_steps=10000):
     out_post = ed.copy(out, var_post)
     # Re-evaluate metrics
     print('accuracy, log_likelihood, crossentropy',
-          ed.evaluate(['accuracy', 'log_likelihood', 'crossentropy'], data={out_post: y_train, x: x_train}))
+          ed.evaluate(['accuracy', 'log_likelihood', 'crossentropy'], data={out_post: y_test, x: x_test}))
+
+
+
+def shuffle_in_unison(a, b):
+    rng_state = np.random.get_state()
+    np.random.shuffle(a)
+    np.random.set_state(rng_state)
+    np.random.shuffle(b)
 
 
 def train_net(df):
     pred, resp = forest_training_data(df)
     #for x in pred:
       #  print(x.tolist())
+    print(len(resp))
     sk.preprocessing.scale(pred, copy=False)
     apred = np.array(pred, dtype=np.float32)
     aresp = np.array(resp, dtype=np.float32).reshape((len(pred), 1))
-    build_net(apred, aresp, 50000)
+    shuffle_in_unison(apred, aresp)
+    x_train = apred[0:-200]
+    y_train = aresp[0:-200]
+    x_test = apred[-200:]
+    y_test = aresp[-200:]
+    build_net(x_train, y_train, 10000, x_test, y_test)
+    forest = sk.ensemble.RandomForestClassifier(n_estimators=500, oob_score=True, n_jobs=4)
+    forest.fit(x_train, y_train)
+    print(forest.oob_score_, forest.score(x_test, y_test))
 
    # print("Fetched data, tensoring")
    #  tpred = tf.cast(tf.stack(pred), tf.float32)
@@ -90,10 +110,10 @@ def train_net(df):
 
 
 if __name__ == '__main__':
-    league = 3
+    league = 2
     df = pd.read_csv(_constants.data_location + 'simple_game_data_leagueId={}.csv'.format(league))
     train_net(df)
-    predict_league(league)
+    #predict_league(league)
 
 
 
