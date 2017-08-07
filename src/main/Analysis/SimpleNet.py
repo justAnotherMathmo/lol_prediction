@@ -10,14 +10,6 @@ import Nets
 from yellowfin import YFOptimizer
 
 
-# Gaussian variational 'posterior' with tf.Variable parameters - to be fit with the true posterior
-def gauss_var_post(shape):
-    return ed.models.Normal(loc=tf.Variable(tf.zeros(shape)), scale=tf.nn.softplus(tf.Variable(tf.zeros(shape))))
-
-
-# guassian prior (with requested shape)
-def gauss_prior(shape, std=1.0):
-    return ed.models.Normal(loc=tf.zeros(shape), scale=std*tf.ones(shape))
 
 
 # TODO
@@ -35,7 +27,7 @@ def build_net(x_train, y_train, num_train_steps=10000, x_test=None, y_test=None)
     if y_test is None:
         y_test = y_train
     # widths of fully-connected layers in NN
-    layer_widths = [8, 8, 8, 8, 8]
+    layer_widths = [8, 8, 8, 8, 8, 8]
     # Input data goes here (via feed_dict or equiv)
     x = tf.placeholder(tf.float32, shape=[None, inputs])
 
@@ -43,13 +35,13 @@ def build_net(x_train, y_train, num_train_steps=10000, x_test=None, y_test=None)
     layer_widths += [outputs]
     net = Nets.SuperDenseNet(inputs, layer_widths, activations)
     # Construct all parameters of NN, set to independant gaussian priors
-    weights = [gauss_prior(shape) for shape in net.weight_shapes()]
-    biases = [gauss_prior(shape) for shape in net.bias_shapes()]
+    weights = [Nets.gauss_prior(shape) for shape in net.weight_shapes()]
+    biases = [Nets.gauss_prior(shape) for shape in net.bias_shapes()]
     out = ed.models.Bernoulli(logits=net.apply(x, weights, biases))
 
     # Variational 'posterior's for NN params
-    qweights = [gauss_var_post(w.shape) for w in weights]
-    qbiases = [gauss_var_post(b.shape) for b in biases]
+    qweights = [Nets.gauss_var_post(w.shape) for w in weights]
+    qbiases = [Nets.gauss_var_post(b.shape) for b in biases]
 
     # Map from random variables to their variational posterior objects
     weights_post = {weights[i]: qweights[i] for i in range(len(weights))}
@@ -90,10 +82,15 @@ def train_net(df):
     apred = np.array(pred, dtype=np.float32)
     aresp = np.array(resp, dtype=np.float32).reshape((len(pred), 1))
     shuffle_in_unison(apred, aresp)
-    x_train = apred[0:-200]
-    y_train = aresp[0:-200]
-    x_test = apred[-200:]
-    y_test = aresp[-200:]
+    val_set = 1
+    x_train = apred[0:-val_set]
+    y_train = aresp[0:-val_set]
+    x_test = apred[-val_set:]
+    y_test = aresp[-val_set:]
+    df2 = pd.read_csv(_constants.data_location + 'simple_game_data_leagueId={}.csv'.format(2))
+    x_test, y_testL = forest_training_data(df2)
+    x_test = np.array(x_test, dtype=np.float32)
+    y_test = np.array(y_testL, dtype=np.float32).reshape(len(y_testL), 1)
     build_net(x_train, y_train, 10000, x_test, y_test)
     forest = sk.ensemble.RandomForestClassifier(n_estimators=500, oob_score=True, n_jobs=4)
     forest.fit(x_train, y_train)
@@ -110,7 +107,7 @@ def train_net(df):
 
 
 if __name__ == '__main__':
-    league = 2
+    league = 3
     df = pd.read_csv(_constants.data_location + 'simple_game_data_leagueId={}.csv'.format(league))
     train_net(df)
     #predict_league(league)
