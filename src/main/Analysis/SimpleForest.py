@@ -38,26 +38,11 @@ def simplify_dataframe(df, include_team_name=True):
     for new_stat in pivot_timeline:
         add_over_all_stats_new(df, 'timeline/{}'.format(new_stat))
 
-    new_df = df[team_stats + list(map(lambda x: 'all/stats/{}'.format(x), pivot_stats))
-                + list(map(lambda x: 'all/timeline/{}'.format(x), pivot_timeline))]
+    new_df = df[team_stats + ['all/stats/{}'.format(x) for x in pivot_stats]
+                + ['all/timeline/{}'.format(x) for x in pivot_timeline]]
+
 
     return new_df
-
-
-# def forest_training_data(df):
-#     list_of_games = []
-#     simple_df = simplify_dataframe(df, include_team_name=False)
-#     for row_num in range(len(df)//2):
-#         # Get agggreagte data for a match with both teams, flipping for games
-#         team_blue = simple_df[simple_df.index == 2*row_num].squeeze()
-#         team_red = simple_df[simple_df.index == 2*row_num+1].squeeze()
-#         game_data1 = np.append(team_blue.as_matrix(), team_red.as_matrix())
-#         game_data1 = np.append(game_data1, [0])
-#         game_data2 = np.append(team_red.as_matrix(), team_blue.as_matrix())
-#         game_data2 = np.append(game_data2, [1])
-#         list_of_games += [game_data1, game_data2]
-#
-#     return list_of_games, list(df.win)
 
 
 def team_data(df):
