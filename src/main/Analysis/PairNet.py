@@ -6,6 +6,7 @@ import itertools
 import SimpleForest
 import _constants
 import pandas as pd
+import sklearn as sk
 
 def read_data(df):
     simple_df = SimpleForest.simplify_dataframe(df)
@@ -17,6 +18,7 @@ def read_data(df):
     def reg_team(name):
         if name in team_numbers:
             return team_numbers[name]
+        nonlocal teams_seen
         team_numbers[name] = teams_seen
         teams_seen = teams_seen + 1
         return teams_seen - 1
@@ -26,8 +28,43 @@ def read_data(df):
         red = simple_df.ix[2 * row_num + 1]
         blueN = reg_team(blue['team_name'])
         redN = reg_team(red['team_name'])
-        games.append(np.array(blueN, redN, 0))
-        games.append(np.array(redN, blueN, 1))
+        games.append(np.array([blueN, redN, 0]))
+        games.append(np.array([redN, blueN, 1]))
+        #Need to give from both rows to both entries!
+        blueStat = simple_df.drop('team_name', axis=1).ix[2 * row_num].as_matrix()
+        redStat = simple_df.drop('team_name', axis=1).ix[2 * row_num + 1].as_matrix()
+        blueStat = blueStat.astype(np.float32)
+        redStat = redStat.astype(np.float32)
+        blueStat[np.isnan(blueStat)] = 0
+        redStat[np.isnan(redStat)] = 0
+        results.append(np.append(blueStat, redStat, 0))
+        results.append(np.append(redStat, blueStat, 0))
+
+    results = sk.preprocessing.scale(results, copy=False)
+    print(results)
+    winloss = list(df.win)
+    for i, w in zip(range(len(results)), winloss):
+        results[i][-1] = w
+
+    return games, results
+
+
+
+
+
+
+class BasicPred(object):
+
+    def __init__(self, nn):
+        self.nn = nn
+
+    def apply(self):
+
+
+
+    def params(self):
+        return self.nn.params()
+
 
 
 
@@ -72,4 +109,5 @@ class PairModel(object):
 def read_csv(league):
     return pd.read_csv(_constants.data_location + 'simple_game_data_leagueId={}.csv'.format(league))
 
-read_data(read_csv(2))
+games, results = read_data(read_csv(2))
+print(results)
