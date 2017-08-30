@@ -37,11 +37,11 @@ def read_data(df):
         redStat = redStat.astype(np.float32)
         blueStat[np.isnan(blueStat)] = 0
         redStat[np.isnan(redStat)] = 0
-        results.append(np.append(blueStat, redStat, 0))
-        results.append(np.append(redStat, blueStat, 0))
-
+        results.append(np.append(np.append(blueStat, redStat[:2]), redStat[4:11]))
+        results.append(np.append(np.append(redStat, blueStat[:2]), blueStat[4:11]))
+    print(results[0])
     results = sk.preprocessing.scale(results, copy=False)
-    print(results)
+
     winloss = list(df.win)
     for i, w in zip(range(len(results)), winloss):
         results[i][-1] = w
@@ -49,28 +49,29 @@ def read_data(df):
     return games, results
 
 
+class BMixture(ed.RandomVariable):
+
+    def __init__(self, ber, d1, d2):
+        self.ber = ber
+        self.d1 = d1
+        self.d2 = d2
+
+    def log_prob(self, x):
+         
 
 
-
-
-class BasicPred(object):
+class FactoredPredictor:
 
     def __init__(self, nn):
         self.nn = nn
 
-    def apply(self):
+    def apply(self, x, params):
+        y = self.nn.apply(x, params[:-3])
 
 
 
     def params(self):
-        return self.nn.params()
-
-
-
-
-
-
-
+        return self.nn.params + []
 
 class PairModel(object):
 

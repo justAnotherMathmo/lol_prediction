@@ -47,7 +47,7 @@ class SuperDenseNet(object):
         return self.layer_widths
 
     def param_space(self):
-        return [x for x in itertools.chain(self.weight_shapes(), self.bias_shapes())]
+        return self.weight_shapes() + self.bias_shapes()
 
     def apply(self, x, weights, biases):
         layer_outputs = [x]
@@ -57,8 +57,8 @@ class SuperDenseNet(object):
 
     def apply(self, x, params):
         layer_outputs = [x]
-        weights = params[:len(self.tensor_shapes)]
-        biases = params[len(self.tensor_shapes):]
+        weights = params[:len(self.weight_shapes())]
+        biases = params[len(self.weight_shapes()):]
         for a, w, b in zip(self.activations, weights, biases):
             layer_outputs.append(
                 a(tf.matmul(tf.concat(layer_outputs[max(-self.lookback, -len(layer_outputs)):], 1), w) + b))
