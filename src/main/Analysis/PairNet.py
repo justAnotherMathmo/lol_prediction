@@ -49,15 +49,16 @@ def read_data(df):
     return games, results
 
 
-class BMixture(ed.RandomVariable):
+class IndependentJoint(ed.RandomVariable):
 
-    def __init__(self, ber, d1, d2):
-        self.ber = ber
+    def __init__(self, d1, d2, d1dim):
+        super.__init__(self)
         self.d1 = d1
         self.d2 = d2
+        self.d1dim = d1dim
 
     def log_prob(self, x):
-         
+        return self.d1.log_prob(x[:, :self.d1dim]) + self.d2.log_prob(x[:, self.d1dim:])
 
 
 class FactoredPredictor:
@@ -65,8 +66,11 @@ class FactoredPredictor:
     def __init__(self, nn):
         self.nn = nn
 
+
     def apply(self, x, params):
-        y = self.nn.apply(x, params[:-3])
+        y = self.nn.apply(x, params[:-2])
+        return IndependentJoint(ed.models.Bernoulli(logits=tf.matmul(y, params[-2])),
+                                ed.models.MultiVariateNormalTriL(tf.matmul(y,params[-1])), 1)
 
 
 

@@ -54,7 +54,7 @@ def build_net(x_train, y_train, num_train_steps=10000, x_test=None, y_test=None)
     # Run variational inference, minimizing KL(q, p) using stochastic gradient descent over variational params
 
     inference = ed.KLqp(var_post, data={out: y_train, x: x_train})
-    inference.initialize(optimizer=YFOptimizer())
+    #inference.initialize(optimizer=YFOptimizer())
 
     inference.run(n_samples=16, n_iter=num_train_steps)
 

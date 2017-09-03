@@ -54,7 +54,7 @@ class SuperDenseNet(object):
         for a, w, b in zip(self.activations, weights, biases):
             layer_outputs.append(a(tf.matmul(tf.concat(layer_outputs[max(-self.lookback, -len(layer_outputs)):], 1), w) + b))
         return layer_outputs[-1]
-
+    """
     def apply(self, x, params):
         layer_outputs = [x]
         weights = params[:len(self.weight_shapes())]
@@ -63,4 +63,4 @@ class SuperDenseNet(object):
             layer_outputs.append(
                 a(tf.matmul(tf.concat(layer_outputs[max(-self.lookback, -len(layer_outputs)):], 1), w) + b))
         return layer_outputs[-1]
-
+    """
