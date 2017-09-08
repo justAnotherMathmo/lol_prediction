@@ -8,6 +8,7 @@ import SimpleForest
 import _constants
 import pandas as pd
 import sklearn as sk
+from tensorflow.contrib.distributions import FULLY_REPARAMETERIZED
 
 def read_data(df):
     simple_df = SimpleForest.simplify_dataframe(df)
@@ -42,7 +43,7 @@ def read_data(df):
         results.append(np.append(np.append(redStat, blueStat[:2]), blueStat[4:11]))
     print(results[0])
     results = sk.preprocessing.scale(results, copy=False)
-
+    results = results.astype(np.float32)
     winloss = list(df.win)
     for i, w in zip(range(len(results)), winloss):
         results[i][-1] = w
@@ -50,21 +51,37 @@ def read_data(df):
     return games, results, teams_seen
 
 
-class IndependentJoint(ed.RandomVariable):
+class IndependentJoint(ed.RandomVariable, tf.contrib.distributions.Distribution):
 
-    def __init__(self, d1, d2, d1dim, *args, **kwargs):
-        self.d1 = d1
-        self.d2 = d2
+    def __init__(self, d1, d2, d1dim,
+                 validate_args=False,
+                 allow_nan_stats=True,
+                 name="IndependentJoint", *args, **kwargs):
+
         self.d1dim = d1dim
-        ed.RandomVariable.__init__(self, *args, **kwargs)
-        self._value = self.sample([])
 
+        parameters = locals()
+        with tf.name_scope(name, values=[d1, d2]):
+            with tf.control_dependencies([]):
+                self.d1 = d1
+                self.d2 = d2
 
-    def log_prob(self, x):
+        super(IndependentJoint, self).__init__(
+            dtype=tf.float32,
+            reparameterization_type=FULLY_REPARAMETERIZED,
+            validate_args=validate_args,
+            allow_nan_stats=allow_nan_stats,
+            parameters=parameters,
+            #graph_parents=[d1._params, d2._params],
+            name=name,
+            *args,
+            **kwargs)
+
+    def _log_prob(self, x):
         return self.d1.log_prob(x[:, :self.d1dim]) + self.d2.log_prob(x[:, self.d1dim:])
 
-    def sample(self, shape):
-        return tf.concat(self.d1.sample(shape), self.d2.sample(shape), 1)
+    def _sample_n(self, n, seed=None):
+        return tf.concat(self.d1._sample_n(n, seed), self.d2._sample_n(n, seed), 1)
 
 
 class FactoredPredictor:
@@ -76,7 +93,8 @@ class FactoredPredictor:
     def apply(self, x, params):
         y = self.nn.apply(x, params[:-2])
         return IndependentJoint(ed.models.MultivariateNormalTriL(tf.tensordot(y, params[-2], 1)),
-                                ed.models.Bernoulli(logits=tf.matmul(y, params[-1])), 1)
+                                ed.models.Bernoulli(logits=tf.matmul(y, params[-1])), 1,
+                                value=tf.zeros([1320, 32]))
 
     def param_space(self):
         return self.nn.param_space() + [[self.nn.outputs(), self.outputs - 1, self.outputs - 1], [self.nn.outputs(), 1]]
