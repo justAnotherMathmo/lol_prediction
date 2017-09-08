@@ -4,6 +4,7 @@ import edward as ed
 import Nets
 import itertools
 import SimpleForest
+
 import _constants
 import pandas as pd
 import sklearn as sk
@@ -46,36 +47,39 @@ def read_data(df):
     for i, w in zip(range(len(results)), winloss):
         results[i][-1] = w
 
-    return games, results
+    return games, results, teams_seen
 
 
 class IndependentJoint(ed.RandomVariable):
 
-    def __init__(self, d1, d2, d1dim):
-        super.__init__(self)
+    def __init__(self, d1, d2, d1dim, *args, **kwargs):
         self.d1 = d1
         self.d2 = d2
         self.d1dim = d1dim
+        ed.RandomVariable.__init__(self, *args, **kwargs)
+        self._value = self.sample([])
+
 
     def log_prob(self, x):
         return self.d1.log_prob(x[:, :self.d1dim]) + self.d2.log_prob(x[:, self.d1dim:])
 
+    def sample(self, shape):
+        return tf.concat(self.d1.sample(shape), self.d2.sample(shape), 1)
+
 
 class FactoredPredictor:
 
-    def __init__(self, nn):
+    def __init__(self, nn, outputs):
         self.nn = nn
-
+        self.outputs = outputs
 
     def apply(self, x, params):
         y = self.nn.apply(x, params[:-2])
-        return IndependentJoint(ed.models.Bernoulli(logits=tf.matmul(y, params[-2])),
-                                ed.models.MultiVariateNormalTriL(tf.matmul(y,params[-1])), 1)
+        return IndependentJoint(ed.models.MultivariateNormalTriL(tf.tensordot(y, params[-2], 1)),
+                                ed.models.Bernoulli(logits=tf.matmul(y, params[-1])), 1)
 
-
-
-    def params(self):
-        return self.nn.params + []
+    def param_space(self):
+        return self.nn.param_space() + [[self.nn.outputs(), self.outputs - 1, self.outputs - 1], [self.nn.outputs(), 1]]
 
 class PairModel(object):
 
@@ -83,10 +87,11 @@ class PairModel(object):
 
         self.team_numbers = {}
         self.team_names = []
+        self.features = features
         self.team_vectors = Nets.gauss_var_post([teams, features])
         self.predictor = predictor
-        self.param_space = list(predictor.params()) + [self.team_vectors.get_shape()]
-        self.var_post = [Nets.guass_var_post(shape) for shape in self.param_space]
+        self.param_space = list(predictor.param_space()) + [self.team_vectors.get_shape()]
+        self.var_post = [Nets.gauss_var_post(shape) for shape in self.param_space]
         if prior is None:
             prior = [Nets.gauss_prior(shape) for shape in self.param_space]
         self.prior = prior
@@ -94,9 +99,10 @@ class PairModel(object):
     def train_model(self, games, results, num_train_steps=10000):
         params_post = {p: q for p, q in zip(self.prior, self.var_post)}
         x = tf.placeholder(tf.int32, shape=[None, 3])
-        print('accuracy, log_likelihood, crossentropy', ed.evaluate(['accuracy', 'log_likelihood', 'crossentropy'], data={results: results, x: games}))
-        y = self.predict(x)
 
+        y = self.predict(x)
+        print('accuracy, log_likelihood, crossentropy',
+              ed.evaluate(['accuracy', 'log_likelihood', 'crossentropy'], data={y: results, x: games}))
         inference = ed.KLqp(self.var_post, data={y: results, x: games})
 
         inference.run(n_samples=16, n_iter=num_train_steps)
@@ -108,11 +114,23 @@ class PairModel(object):
               ed.evaluate(['accuracy', 'log_likelihood', 'crossentropy'], data={out_post: results, x: games}))
 
     def predict(self, x):
-        return self.predictor.apply(tf.concat(tf.gather(self.team_vectors, x[:-1]), x[-1:]))
+        team_vectors = tf.reshape(tf.gather(self.team_vectors, x[:, :-1]), [-1, 2*self.features])
+        return self.predictor.apply(tf.concat([team_vectors, tf.cast(x[:, -1:], tf.float32)], 1)
+                                    , self.prior[:-1])
 
 
 def read_csv(league):
     return pd.read_csv(_constants.data_location + 'simple_game_data_leagueId={}.csv'.format(league))
 
-games, results = read_data(read_csv(2))
+games, results, teams = read_data(read_csv(2))
+print(games[0])
+outputs = 32
 print(results)
+layer_widths = [8, 8, 8, 8, 8]
+activations = [Nets.selu for _ in layer_widths] + [tf.identity]
+layer_widths += [outputs]
+net = Nets.SuperDenseNet(17, layer_widths, activations)
+predictor = FactoredPredictor(net, len(results[0]))
+myModel = PairModel(teams, predictor)
+
+myModel.train_model(games, results)

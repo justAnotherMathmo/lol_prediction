@@ -27,10 +27,10 @@ def build_net(x_train, y_train, num_train_steps=10000, x_test=None, y_test=None)
     if y_test is None:
         y_test = y_train
     # widths of fully-connected layers in NN
-    layer_widths = [8, 8, 8, 8, 8, 8]
+
     # Input data goes here (via feed_dict or equiv)
     x = tf.placeholder(tf.float32, shape=[None, inputs])
-
+    layer_widths = [8, 8, 8, 8, 8, 8]
     activations = [Nets.selu for _ in layer_widths] + [tf.identity]
     layer_widths += [outputs]
     net = Nets.SuperDenseNet(inputs, layer_widths, activations)
