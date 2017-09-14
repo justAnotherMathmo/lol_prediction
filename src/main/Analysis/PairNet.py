@@ -8,7 +8,8 @@ import SimpleForest
 import _constants
 import pandas as pd
 import sklearn as sk
-from tensorflow.contrib.distributions import FULLY_REPARAMETERIZED
+from tensorflow.contrib.distributions import NOT_REPARAMETERIZED
+
 
 def read_data(df):
     simple_df = SimpleForest.simplify_dataframe(df)
@@ -53,26 +54,28 @@ def read_data(df):
 
 class IndependentJoint(ed.RandomVariable, tf.contrib.distributions.Distribution):
 
-    def __init__(self, d1, d2, d1dim,
+    def __init__(self, params,  # d1, d2, d1dim,
                  validate_args=False,
                  allow_nan_stats=True,
                  name="IndependentJoint", *args, **kwargs):
 
-        self.d1dim = d1dim
+        d1, d2, d1dim = params
 
         parameters = locals()
-        with tf.name_scope(name, values=[d1, d2]):
+        parameters.pop("self")
+        with tf.name_scope(name, values=[params]):
             with tf.control_dependencies([]):
                 self.d1 = d1
                 self.d2 = d2
+                self.d1dim = d1dim
 
         super(IndependentJoint, self).__init__(
             dtype=tf.float32,
-            reparameterization_type=FULLY_REPARAMETERIZED,
+            reparameterization_type=NOT_REPARAMETERIZED,
             validate_args=validate_args,
             allow_nan_stats=allow_nan_stats,
             parameters=parameters,
-            #graph_parents=[d1._params, d2._params],
+            graph_parents=[self.d1.value(), self.d2.value()],
             name=name,
             *args,
             **kwargs)
@@ -92,12 +95,15 @@ class FactoredPredictor:
 
     def apply(self, x, params):
         y = self.nn.apply(x, params[:-2])
-        return IndependentJoint(ed.models.MultivariateNormalTriL(tf.tensordot(y, params[-2], 1)),
-                                ed.models.Bernoulli(logits=tf.matmul(y, params[-1])), 1,
+        return IndependentJoint((ed.models.MultivariateNormalTriL(tf.matmul(y, params[-3]), tf.tensordot(y, params[-2], 1)),
+                                ed.models.Bernoulli(logits=tf.matmul(y, params[-1])), 31),
                                 value=tf.zeros([1320, 32]))
 
     def param_space(self):
-        return self.nn.param_space() + [[self.nn.outputs(), self.outputs - 1, self.outputs - 1], [self.nn.outputs(), 1]]
+        return self.nn.param_space() + [[self.nn.outputs(), self.outputs - 1],
+                                        [self.nn.outputs(), self.outputs - 1, self.outputs - 1],
+                                        [self.nn.outputs(), 1]
+                                        ]
 
 class PairModel(object):
 
@@ -106,9 +112,8 @@ class PairModel(object):
         self.team_numbers = {}
         self.team_names = []
         self.features = features
-        self.team_vectors = Nets.gauss_var_post([teams, features])
         self.predictor = predictor
-        self.param_space = list(predictor.param_space()) + [self.team_vectors.get_shape()]
+        self.param_space = list(predictor.param_space()) + [[teams, features]]
         self.var_post = [Nets.gauss_var_post(shape) for shape in self.param_space]
         if prior is None:
             prior = [Nets.gauss_prior(shape) for shape in self.param_space]
@@ -119,20 +124,20 @@ class PairModel(object):
         x = tf.placeholder(tf.int32, shape=[None, 3])
 
         y = self.predict(x)
-        print('accuracy, log_likelihood, crossentropy',
-              ed.evaluate(['accuracy', 'log_likelihood', 'crossentropy'], data={y: results, x: games}))
-        inference = ed.KLqp(self.var_post, data={y: results, x: games})
+        print('accuracy, log_likelihood',
+              ed.evaluate(['accuracy', 'log_likelihood'], data={y: results, x: games}))
+        inference = ed.KLqp(params_post, data={y: results, x: games})
 
         inference.run(n_samples=16, n_iter=num_train_steps)
 
         # Get output object dependant on variational posteriors rather than priors
         out_post = ed.copy(y, params_post)
         # Re-evaluate metrics
-        print('accuracy, log_likelihood, crossentropy',
-              ed.evaluate(['accuracy', 'log_likelihood', 'crossentropy'], data={out_post: results, x: games}))
+        print('accuracy, log_likelihood',
+              ed.evaluate(['accuracy', 'log_likelihood'], data={out_post: results, x: games}))
 
     def predict(self, x):
-        team_vectors = tf.reshape(tf.gather(self.team_vectors, x[:, :-1]), [-1, 2*self.features])
+        team_vectors = tf.reshape(tf.gather(self.prior[-1], x[:, :-1]), [-1, 2*self.features])
         return self.predictor.apply(tf.concat([team_vectors, tf.cast(x[:, -1:], tf.float32)], 1)
                                     , self.prior[:-1])
 
@@ -140,15 +145,18 @@ class PairModel(object):
 def read_csv(league):
     return pd.read_csv(_constants.data_location + 'simple_game_data_leagueId={}.csv'.format(league))
 
-games, results, teams = read_data(read_csv(2))
-print(games[0])
-outputs = 32
-print(results)
-layer_widths = [8, 8, 8, 8, 8]
-activations = [Nets.selu for _ in layer_widths] + [tf.identity]
-layer_widths += [outputs]
-net = Nets.SuperDenseNet(17, layer_widths, activations)
-predictor = FactoredPredictor(net, len(results[0]))
-myModel = PairModel(teams, predictor)
+if __name__ == '__main__':
+    games, results, teams = read_data(read_csv(2))
+    print(games[0])
+    outputs = 32
+    print(results)
+    layer_widths = [8, 8, 8, 8, 8]
+    activations = [Nets.selu for _ in layer_widths] + [tf.identity]
+    layer_widths += [outputs]
+    net = Nets.SuperDenseNet(17, layer_widths, activations)
+    predictor = FactoredPredictor(net, len(results[0]))
+    myModel = PairModel(teams, predictor)
 
-myModel.train_model(games, results)
+    # tf.global_variables_initializer()
+
+    myModel.train_model(games, results)
