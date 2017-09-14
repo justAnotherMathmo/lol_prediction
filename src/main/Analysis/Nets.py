@@ -28,14 +28,13 @@ def merge(a, b):
 
 class SuperDenseNet(object):
 
-    def __init__(self, inputs, layer_widths, activations, lookback=None):
-        if lookback is None:
-            lookback = len(layer_widths)
-        self.lookback = lookback
+
+    def __init__(self, inputs, layer_widths, activations):
+
         self.layer_widths = layer_widths
         self.inputs = inputs
         widths = [inputs] + layer_widths[:-1]
-        self.input_widths = [sum(widths[max(0, i - lookback):i + 1]) for i in range(len(widths))]
+        self.input_widths = [sum(widths[:i + 1]) for i in range(len(widths))]
         self.activations = activations
         self.tensor_shapes = [[low, high]
                               for low, high in zip(self.input_widths, layer_widths)]
@@ -66,6 +65,6 @@ class SuperDenseNet(object):
         biases = params[len(self.weight_shapes()):]
         for a, w, b in zip(self.activations, weights, biases):
             layer_outputs.append(
-                a(tf.matmul(tf.concat(layer_outputs[max(-self.lookback, -len(layer_outputs)):], 1), w) + b))
+                a(tf.matmul(tf.concat(layer_outputs, 1), w) + b))
         return layer_outputs[-1]
 

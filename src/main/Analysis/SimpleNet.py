@@ -30,36 +30,34 @@ def build_net(x_train, y_train, num_train_steps=10000, x_test=None, y_test=None)
 
     # Input data goes here (via feed_dict or equiv)
     x = tf.placeholder(tf.float32, shape=[None, inputs])
-    layer_widths = [8, 8, 8, 8, 8, 8]
+    layer_widths = [16, 16, 16, 16, 16, 16]
     activations = [Nets.selu for _ in layer_widths] + [tf.identity]
     layer_widths += [outputs]
     net = Nets.SuperDenseNet(inputs, layer_widths, activations)
     # Construct all parameters of NN, set to independant gaussian priors
-    weights = [Nets.gauss_prior(shape) for shape in net.weight_shapes()]
-    biases = [Nets.gauss_prior(shape) for shape in net.bias_shapes()]
-    out = ed.models.Bernoulli(logits=net.apply(x, weights, biases))
+    params = [Nets.gauss_prior(shape) for shape in net.param_space()]
+
+    out = ed.models.Bernoulli(logits=net.apply(x, params))
 
     # Variational 'posterior's for NN params
-    qweights = [Nets.gauss_var_post(w.shape) for w in weights]
-    qbiases = [Nets.gauss_var_post(b.shape) for b in biases]
+    qparams = [Nets.gauss_var_post(w.shape) for w in params]
+
 
     # Map from random variables to their variational posterior objects
-    weights_post = {weights[i]: qweights[i] for i in range(len(weights))}
-    biases_post = {biases[i]: qbiases[i] for i in range(len(weights))}
-    var_post = {**weights_post, **biases_post}
+    params_post = {params[i]: qparams[i] for i in range(len(params))}
 
-    # evaluate 'accuracy' (what even is this??) and likelihood of model over the dataset before training
+    # evaluate accuracy and likelihood of model over the dataset before training
     print('accuracy, log_likelihood, crossentropy',
           ed.evaluate(['accuracy', 'log_likelihood', 'crossentropy'], data={out: y_test, x: x_test}))
     # Run variational inference, minimizing KL(q, p) using stochastic gradient descent over variational params
 
-    inference = ed.KLqp(var_post, data={out: y_train, x: x_train})
+    inference = ed.KLqp(params_post, data={out: y_train, x: x_train})
     #inference.initialize(optimizer=YFOptimizer())
 
-    inference.run(n_samples=16, n_iter=num_train_steps)
+    inference.run(n_samples=32, n_iter=num_train_steps)
 
     # Get output object dependant on variational posteriors rather than priors
-    out_post = ed.copy(out, var_post)
+    out_post = ed.copy(out, params_post)
     # Re-evaluate metrics
     print('accuracy, log_likelihood, crossentropy',
           ed.evaluate(['accuracy', 'log_likelihood', 'crossentropy'], data={out_post: y_test, x: x_test}))
@@ -81,16 +79,16 @@ def train_net(df):
     sk.preprocessing.scale(pred, copy=False)
     apred = np.array(pred, dtype=np.float32)
     aresp = np.array(resp, dtype=np.float32).reshape((len(pred), 1))
-    shuffle_in_unison(apred, aresp)
-    val_set = 1
+    #shuffle_in_unison(apred, aresp)
+    val_set = 200
     x_train = apred[0:-val_set]
     y_train = aresp[0:-val_set]
     x_test = apred[-val_set:]
     y_test = aresp[-val_set:]
-    df2 = pd.read_csv(_constants.data_location + 'simple_game_data_leagueId={}.csv'.format(2))
-    x_test, y_testL = forest_training_data(df2)
-    x_test = np.array(x_test, dtype=np.float32)
-    y_test = np.array(y_testL, dtype=np.float32).reshape(len(y_testL), 1)
+    #df2 = pd.read_csv(_constants.data_location + 'simple_game_data_leagueId={}.csv'.format(2))
+    #x_test, y_testL = forest_training_data(df2)
+    #x_test = np.array(x_test, dtype=np.float32)
+    #y_test = np.array(y_testL, dtype=np.float32).reshape(len(y_testL), 1)
     build_net(x_train, y_train, 10000, x_test, y_test)
     forest = sk.ensemble.RandomForestClassifier(n_estimators=500, oob_score=True, n_jobs=4)
     forest.fit(x_train, y_train)
