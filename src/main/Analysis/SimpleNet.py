@@ -41,7 +41,7 @@ def build_net(x_train, y_train, num_train_steps=10000, x_test=None, y_test=None)
 
     # Variational 'posterior's for NN params
     qparams = [Nets.gauss_var_post(w.shape) for w in params]
-
+    asd = tf.train.AdamOptimizer
 
     # Map from random variables to their variational posterior objects
     params_post = {params[i]: qparams[i] for i in range(len(params))}
@@ -79,7 +79,7 @@ def train_net(df):
     sk.preprocessing.scale(pred, copy=False)
     apred = np.array(pred, dtype=np.float32)
     aresp = np.array(resp, dtype=np.float32).reshape((len(pred), 1))
-    #shuffle_in_unison(apred, aresp)
+    shuffle_in_unison(apred, aresp)
     val_set = 200
     x_train = apred[0:-val_set]
     y_train = aresp[0:-val_set]

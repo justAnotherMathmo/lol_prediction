@@ -97,7 +97,7 @@ class FactoredPredictor:
         y = self.nn.apply(x, params[:-2])
         return IndependentJoint((ed.models.MultivariateNormalTriL(tf.matmul(y, params[-3]), tf.tensordot(y, params[-2], 1)),
                                 ed.models.Bernoulli(logits=tf.matmul(y, params[-1])), 31),
-                                value=tf.zeros([1320, 32]))
+                                value=tf.zeros([1320, self.nn.outputs()]))
 
     def param_space(self):
         return self.nn.param_space() + [[self.nn.outputs(), self.outputs - 1],
@@ -105,9 +105,25 @@ class FactoredPredictor:
                                         [self.nn.outputs(), 1]
                                         ]
 
+
+class GaussianModel:
+
+    def __init__(self, nn, outputs):
+        self.nn = nn
+        self.outputs = outputs
+
+    def apply(self, x, params):
+        y = self.nn.apply(x, params[:-2])
+        return ed.models.MultivariateNormalTriL(tf.matmul(y, params[-2]), tf.tensordot(y, (params[-1]), 1))
+
+    def param_space(self):
+        return self.nn.param_space() + [[self.nn.outputs(), self.outputs],
+                                        [self.nn.outputs(), self.outputs, self.outputs]]
+
+
 class PairModel(object):
 
-    def __init__(self, teams, predictor, features=8, prior=None):
+    def __init__(self, teams, predictor, features=6, prior=None):
 
         self.team_numbers = {}
         self.team_names = []
@@ -128,10 +144,10 @@ class PairModel(object):
               ed.evaluate(['accuracy', 'log_likelihood'], data={y: results, x: games}))
         inference = ed.KLqp(params_post, data={y: results, x: games})
 
-        inference.run(n_samples=16, n_iter=num_train_steps)
+        inference.run(n_samples=32, n_iter=num_train_steps)
 
         # Get output object dependant on variational posteriors rather than priors
-        out_post = ed.copy(y, params_post)
+        out_post = ed.copy(y.d2, params_post)
         # Re-evaluate metrics
         print('accuracy, log_likelihood',
               ed.evaluate(['accuracy', 'log_likelihood'], data={out_post: results, x: games}))
@@ -150,12 +166,14 @@ if __name__ == '__main__':
     print(games[0])
     outputs = 32
     print(results)
-    layer_widths = [8, 8, 8, 8, 8]
+    team_vector_length = 1
+    layer_widths = []
     activations = [Nets.selu for _ in layer_widths] + [tf.identity]
     layer_widths += [outputs]
-    net = Nets.SuperDenseNet(17, layer_widths, activations)
+
+    net = Nets.SuperDenseNet(2 * team_vector_length + 1, layer_widths, activations)
     predictor = FactoredPredictor(net, len(results[0]))
-    myModel = PairModel(teams, predictor)
+    myModel = PairModel(teams, predictor, team_vector_length)
 
     # tf.global_variables_initializer()
 
